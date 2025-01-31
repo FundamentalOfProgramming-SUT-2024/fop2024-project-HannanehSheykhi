@@ -6,8 +6,9 @@
 #include <time.h>
 #include <unistd.h> 
 #include <signal.h>
-//#include "common.h"
-typedef struct {
+#include "common.h"
+#include <wchar.h>
+/*typedef struct {
     char username[50];
     char password[50];
     char email[100];
@@ -20,9 +21,9 @@ typedef struct {
     int gameplayed;
     char title[20];
     int experience;
-} Player;
+} PlayerL;*/
 
-Player players[100];
+PlayerL players[100];
 User users[100];
 int playerCount;
 int userCount;
@@ -32,7 +33,7 @@ WINDOW *textbox_win;
 
 // Function Prototypes
 void init();
-void displayPage(Player players[], int start, int end, int count);
+void displayPage(PlayerL players[], int start, int end, int count);
 int ValidPassword(const char* password);
 int ValidEmail(const char* email);
 void saveUser(const User* user);
@@ -40,14 +41,14 @@ void generateRandomPassword(char* password, int length);
 void showPreGameMenu(int option);
 void CreateUser();
 void CreateGuestUser();
-void showScoreboard(Player players[], int count);
+void showScoreboard(PlayerL players[], int count);
 void setting();
 //void GameLevel();
 void ChangeColor();
 void ChooseMusic();
-void sortPlayersByScore(Player players[], int count);
-void addPlayer(Player players[], int *count, const char *username);
-void updateScore(Player players[], int count, const char *username, int newScore);
+void sortPlayersByScore(PlayerL players[], int count);
+void addPlayer(PlayerL players[], int *count, const char *username);
+void updateScore(PlayerL players[], int count, const char *username, int newScore);
 void display_menu(WINDOW *menu_win, int highlight, char **choices, int n_choices);
 void play_music(const char *track);
 void stop_music();
@@ -276,7 +277,7 @@ void showProfile() {
     display_textbox(message);
 }
 
-void displayPage(Player players[], int start, int end, int count) {
+void displayPage(PlayerL players[], int start, int end, int count) {
     clear();
     mvprintw(2, 10, "Scoreboard - Page %d", start / 10 + 1);
     mvprintw(4, 2, "Rank\tUsername\tScore\tGold\tGames Played\tExperience\tTitle");
@@ -311,7 +312,7 @@ void displayPage(Player players[], int start, int end, int count) {
     refresh();
 }
 
-void showScoreboard(Player players[], int count) {
+void showScoreboard(PlayerL players[], int count) {
     int page = 0;
     int totalPages = (count + 10 - 1) / 10;
     while (1) {
@@ -332,12 +333,12 @@ void showScoreboard(Player players[], int count) {
     }
 }
 
-void sortPlayersByScore(Player players[], int count) {
+void sortPlayersByScore(PlayerL players[], int count) {
     for (int i = 0; i < count - 1; i++) {
         for (int j = 0; j < count - i - 1; j++) {
             if (players[j].score < players[j + 1].score || 
                 (players[j].score == players[j + 1].score && strcmp(players[j].username, players[j + 1].username) > 0)) {
-                Player temp = players[j];
+                PlayerL temp = players[j];
                 players[j] = players[j + 1];
                 players[j + 1] = temp;
             }
@@ -349,7 +350,7 @@ void sortPlayersByScore(Player players[], int count) {
     if (count > 2) strcpy(players[2].title, "Champion");
 }
 
-void addPlayer(Player players[], int *count, const char *username) {
+void addPlayer(PlayerL players[], int *count, const char *username) {
     snprintf(players[*count].username, sizeof(players[*count].username), "%s", username);
     players[*count].score = 0;
     players[*count].gold = 0;
@@ -359,7 +360,7 @@ void addPlayer(Player players[], int *count, const char *username) {
     (*count)++;
 }
 
-void updateScore(Player players[], int count, const char *username, int newScore) {
+void updateScore(PlayerL players[], int count, const char *username, int newScore) {
     for (int i = 0; i < count; i++) {
         if (strcmp(players[i].username, username) == 0) {
             players[i].score += newScore;
@@ -384,7 +385,7 @@ void display_menu(WINDOW *menu_win, int highlight, char **choices, int n_choices
     wrefresh(menu_win);
 }
 
-int main() {
+int render2() {
     setlocale(LC_ALL, ""); // Ensure proper locale settings
     init();
     int choice = 0;
@@ -430,5 +431,4 @@ int main() {
     }
     refresh();
     endwin();
-    return 0;
 }
