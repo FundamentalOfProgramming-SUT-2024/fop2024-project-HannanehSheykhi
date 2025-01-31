@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <locale.h>
+#include "common.h"
 
 const char *music_files[] = {
     "/home/hannaneh/Documents/fop2024-project-HannanehSheykhi/asli.mp3",
@@ -17,16 +18,18 @@ const char *music_files[] = {
 int current_track = 0; 
 pid_t music_pid = 0;   
 int game_difficulty = 1;
-wchar_t hero_avatar = L'😊'; // Default hero avatar
+wchar_t hero_avatar = L'☺'; // Default hero avatar
+wchar_t  playerChar[];
 
 void play_music(const char *track);
+
 void stop_music();
 void handle_music_settings();
 void handle_difficulty_settings();
 void handle_avatar_settings();
-void display_menu(WINDOW *menu_win, int highlight, char **choices, int n_choices);
+void display_Menu(WINDOW *menu_win, int highlight, char **choices, int n_choices);
 
-int main() {
+int render3() {
     setlocale(LC_ALL, ""); 
     initscr();
     start_color();
@@ -57,7 +60,7 @@ int main() {
     refresh();
     
     while (1) {
-        display_menu(menu_win, highlight, choices, n_choices);
+        display_Menu(menu_win, highlight, choices, n_choices);
         c = wgetch(menu_win);
         switch (c) {
             case KEY_UP:
@@ -91,10 +94,9 @@ int main() {
         }
     }
     endwin();
-    return 0;
 }
 
-void display_menu(WINDOW *menu_win, int highlight, char **choices, int n_choices) {
+void display_Menu(WINDOW *menu_win, int highlight, char **choices, int n_choices) {
     int x = 2, y = 2, i;
     box(menu_win, 0, 0);
     for (i = 0; i < n_choices; ++i) {
@@ -123,7 +125,7 @@ void handle_difficulty_settings() {
     keypad(diff_win, TRUE);
 
     while (1) {
-        display_menu(diff_win, highlight, difficulty_choices, n_choices);
+        display_Menu(diff_win, highlight, difficulty_choices, n_choices);
         c = wgetch(diff_win);
         switch (c) {
             case KEY_UP:
@@ -164,9 +166,9 @@ void handle_difficulty_settings() {
 
 void handle_avatar_settings() {
     wchar_t *avatar_choices[] = {
-        L"😊",
-        L"🙂",
-        L"😁",
+        L"☺",
+        L"☻",
+        L"☼",
         L"Back"
     };
     int n_choices = sizeof(avatar_choices) / sizeof(wchar_t *);
@@ -206,6 +208,7 @@ void handle_avatar_settings() {
                 if (highlight != n_choices) {
                     hero_avatar = *avatar_choices[choice - 1];
                     mvprintw(22, 0, "Hero avatar set to %ls", avatar_choices[choice - 1]);
+                  wcscpy(playerChar, avatar_choices[choice - 1]);
                 } else {
                     delwin(avatar_win);
                     return;
@@ -232,7 +235,7 @@ void handle_music_settings() {
     keypad(music_win, TRUE);
 
     while (1) {
-        display_menu(music_win, highlight, music_choices, n_choices);
+        display_Menu(music_win, highlight, music_choices, n_choices);
         c = wgetch(music_win);
         switch (c) {
             case KEY_UP:
