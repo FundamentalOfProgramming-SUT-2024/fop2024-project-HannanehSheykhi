@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <locale.h>
 
+
 void draw_title() {
     int row, col;
     getmaxyx(stdscr, row, col);
@@ -90,7 +91,7 @@ void draw_movement_controls() {
     attroff(COLOR_PAIR(1));
 }
 
-int main() {
+int render1() {
     // Initialize ncurses
     setlocale(LC_ALL, "");
     initscr();
@@ -125,5 +126,11 @@ int main() {
     // Start the game (you can replace this with your game logic)
     printf("Starting the game...\n");
 
+}
+int main(){
+    render1();
+    render2();
+    render3();
+    render4();
     return 0;
 }
