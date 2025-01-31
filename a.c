@@ -6,7 +6,8 @@
 #include <time.h>
 #include <unistd.h> 
 #include <signal.h>
-//#include <wchar.h>
+#include <wchar.h>
+#include "common.h"
 
 #define MAP_WIDTH 180
 #define MAP_HEIGHT 50
@@ -34,7 +35,7 @@
         food --> \u2299
         floor --> \u2022*/
 
-typedef struct {
+/*typedef struct {
     int x, y;
     int health;
     int itemsCollected;
@@ -118,7 +119,7 @@ typedef struct {
     int requiredCode; 
     int isLocked;
     int attemptsLeft;      
-} PasswordDoor;
+} PasswordDoor;*/
 
 CodeButton codeButtons[MAX_CODE_BUTTONS];
 PasswordDoor passwordDoors[MAX_PASSWORD_DOORS];
@@ -136,6 +137,7 @@ Gold golds[MAX_GOLD];
 int playerGold = 0; 
 Floor floors[MAX_FLOORS];
 int currentFloor = 0;
+wchar_t playerChar[];
 
 
 
@@ -154,6 +156,7 @@ void initializeMap() {
                 map[i][j] = ' ';
             }
             seen[i][j] = 0;
+
         }
     }
 }
@@ -299,6 +302,7 @@ void placeUpStair(int floorNumber, int linkedFloor) {
             floors[floorNumber].upStair.isActive = 1;
             floors[floorNumber].upStair.linkedFloor = linkedFloor;
             floors[floorNumber].map[y][x] = '>';
+            seen[y][x]=0;
             placed = 1;
         }
     }
@@ -318,6 +322,7 @@ void placeDownStair(int floorNumber, int linkedFloor) {
             floors[floorNumber].downStair.isActive = 1;
             floors[floorNumber].downStair.linkedFloor = linkedFloor;
             floors[floorNumber].map[y][x] = '<';
+            seen[y][x]=0;
             placed = 1;
         }
     }
@@ -381,7 +386,7 @@ void handleStairInteraction() {
         player.x = floors[currentFloor].downStair.x;
         player.y = floors[currentFloor].downStair.y;
 
-        mvprintw(MAP_HEIGHT-2, 2, "Moved to Floor %d", currentFloor);
+        mvprintw(MAP_HEIGHT+2, 2, "Moved to Floor %d", currentFloor);
         refresh();
     }
 
@@ -398,7 +403,7 @@ void handleStairInteraction() {
         player.x = floors[currentFloor].upStair.x;
         player.y = floors[currentFloor].upStair.y;
 
-        mvprintw(MAP_HEIGHT-2, 2, "Returned to Floor %d", currentFloor);
+        mvprintw(MAP_HEIGHT+2, 2, "Returned to Floor %d", currentFloor);
         refresh();
     }
 }
@@ -434,7 +439,7 @@ void discoverSecretDoors() {
         if (player.x == secretDoors[i].x && player.y == secretDoors[i].y && !secretDoors[i].isDiscovered) {
             secretDoors[i].isDiscovered = 1;
             map[secretDoors[i].y][secretDoors[i].x] = '?'; 
-            mvprintw(MAP_HEIGHT - 2, 2, "You discovered a secret door!");
+            mvprintw(MAP_HEIGHT + 2, 2, "You discovered a secret door!");
         }
     }
 }
@@ -609,10 +614,8 @@ void handleCodeButtonInteraction() {
             for (int j = 0; j < 30; j++) {
                 updateCodeButtonVisibility();
                 refresh();
-                usleep(1000000); // تأخیر برای ۱ ثانیه (۱۰۰۰۰۰۰ میکروثانیه)
+                usleep(1000000); 
             }
-
-            // پنهان کردن کد بعد از ۳۰ ثانیه
             codeButtons[i].isVisible = 0; 
             mvprintw(MAP_HEIGHT-2, 2, "\t\t\t\t");  // پاک کردن خط مربوط به کد
             refresh();
@@ -643,7 +646,7 @@ void updateCodeButtonVisibility() {
 void handlePasswordDoorInteraction() {
     for (int i = 0; i < MAX_PASSWORD_DOORS; i++) {
         if (passwordDoors[i].isActive && player.x == passwordDoors[i].x && player.y == passwordDoors[i].y) {
-            mvprintw(MAP_HEIGHT - 2, 2, "Enter the code: ");
+            mvprintw(MAP_HEIGHT + 2, 2, "Enter the code: ");
             refresh();
 
             char input[5];
@@ -655,22 +658,22 @@ void handlePasswordDoorInteraction() {
             int enteredCode = atoi(input);
             if (enteredCode == passwordDoors[i].requiredCode) {
                 passwordDoors[i].isUnlocked = 1;
-                mvprintw(MAP_HEIGHT -2, 2, "Door unlocked!");
+                mvprintw(MAP_HEIGHT +2, 2, "Door unlocked!");
                 map[passwordDoors[i].y][passwordDoors[i].x] = '.'; 
             } else {
                 passwordDoors[i].attemptsLeft--;
                 if (passwordDoors[i].attemptsLeft == 2) {
                     attron(COLOR_PAIR(1)); 
-                    mvprintw(MAP_HEIGHT-2 , 2, "Incorrect code! 2 attempts left.");
+                    mvprintw(MAP_HEIGHT+2 , 2, "Incorrect code! 2 attempts left.");
                     attroff(COLOR_PAIR(1));
                 } else if (passwordDoors[i].attemptsLeft == 1) {
                     attron(COLOR_PAIR(2)); 
-                    mvprintw(MAP_HEIGHT -2, 2, "Incorrect code! 1 attempt left.");
+                    mvprintw(MAP_HEIGHT +2, 2, "Incorrect code! 1 attempt left.");
                     attroff(COLOR_PAIR(2));
                 } else if (passwordDoors[i].attemptsLeft <= 0) {
                     passwordDoors[i].isLocked = 1;
                     attron(COLOR_PAIR(3)); 
-                    mvprintw(MAP_HEIGHT-2 , 2, "Security mode activated! Door is locked.");
+                    mvprintw(MAP_HEIGHT+2 , 2, "Security mode activated! Door is locked.");
                     attroff(COLOR_PAIR(3));
                 }
             }
@@ -813,7 +816,7 @@ void initializePlayer() {
 }
 
 void renderPlayer() {
-    wchar_t playerChar[] = L"😊"; // استفاده از کاراکتر یونیکد 
+    //wchar_t playerChar[] = {L'☺'}; // استفاده از کاراکتر یونیکد wchar_t hero_avatar = L'☺'; 
     mvaddwstr(player.y, player.x, playerChar); // استفاده از mvaddwstr برای چاپ رشته‌های وسیع
 }
 void renderStats() {
@@ -1030,7 +1033,7 @@ void collectGold() {
             playerGold += golds[i].value;  
             golds[i].isCollected = 1;     
             map[golds[i].y][golds[i].x] = '.'; 
-            mvprintw(MAP_HEIGHT-2, 2, "You collected %d gold!", golds[i].value);
+            mvprintw(MAP_HEIGHT+2, 2, "You collected %d gold!", golds[i].value);
         }
     }
 }
@@ -1078,7 +1081,7 @@ void handleSpecialElementInteraction() {
         if (specialElements[i].isActive && player.x == specialElements[i].x && player.y == specialElements[i].y) {
             switch (specialElements[i].type) {
                 case 'T': 
-                    mvprintw(MAP_HEIGHT-2, 2, "You activated a trap! Health reduced.");
+                    mvprintw(MAP_HEIGHT+2, 2, "You activated a trap! Health reduced.");
                     player.health--;  
                     map[specialElements[i].y][specialElements[i].x] = '^';  
                     specialElements[i].isActive = 0; 
@@ -1146,6 +1149,7 @@ void gameOverScreen() {
                     playerGold = 0;    
                     return;
                 } else if (choice == 1) { 
+                    stop_music();
                     endwin();  
                     exit(0);  
                 }
@@ -1153,7 +1157,7 @@ void gameOverScreen() {
         }
     }
 }
-int main() {
+int render4() {
     srand(time(NULL));
     setlocale(LC_ALL, "");
     initscr();
@@ -1162,6 +1166,7 @@ int main() {
     init_pair(2, COLOR_MAGENTA, COLOR_BLACK); 
     init_pair(3, COLOR_RED, COLOR_BLACK); 
     init_pair(4, COLOR_GREEN, COLOR_BLACK); 
+    play_music(music_files[current_track]);
     
     cbreak();
     noecho();
@@ -1171,6 +1176,14 @@ int main() {
     placeUpStair(0, 1);
     createNewFloor(1);
     placeDownStair(1, 0);
+    placeUpStair(1,2);
+    createNewFloor(2);
+    placeDownStair(2,1);
+    placeUpStair(2,3);
+    createNewFloor(3);
+    placeDownStair(3,2);
+
+
 
     while (1) {
         clear();
@@ -1186,7 +1199,11 @@ int main() {
         refresh();
 
         int ch = getch();
-        if (ch == 'q') break;
+        if (ch == 'q') {
+            stop_music();
+        
+        break;
+        }
         handlePlayerInput(ch);
         handleCodeButtonInteraction();
         handlePasswordDoorInteraction();
@@ -1204,5 +1221,4 @@ int main() {
     refresh();
     getch();
     endwin();
-    return 0;
 }
