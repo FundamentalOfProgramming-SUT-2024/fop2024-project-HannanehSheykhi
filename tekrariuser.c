@@ -68,8 +68,8 @@ void init() {
     curs_set(0);
     keypad(stdscr, TRUE); // Enable function and arrow keys
     start_color();
-    init_pair(1, COLOR_WHITE, COLOR_BLACK); // Define color pair for normal text
-    init_pair(2, COLOR_YELLOW, COLOR_BLACK); // Define color pair for highlighted text
+    init_pair(1, COLOR_WHITE, COLOR_BLACK); 
+    init_pair(2, COLOR_YELLOW, COLOR_BLACK); 
     init_pair(3, COLOR_GREEN, COLOR_BLACK);
     init_pair(4, COLOR_RED, COLOR_BLACK);
 }
@@ -88,14 +88,18 @@ void CreateUser() {
         echo();
         getstr(newUser.username);
         noecho();
-
-        // Check if the username already exists
+        mvprintw(5, 0, "Press 'q' to return to the main menu..."); 
+            int ch =getch();
+             if(ch == 'q'){
+                render2();
+            }
         if (usernameExists("users.dat", newUser.username)) {
             mvprintw(4, 0, "Username already exists! Press any key to retry...");
             getch();
             isValid = 0;
-        } else {
-            isValid = strlen(newUser.username) > 0; // Basic non-empty validation
+        }
+         else {
+            isValid = strlen(newUser.username) > 0; 
             if (!isValid) {
                 mvprintw(4, 0, "Invalid Username! Press any key to retry...");
                 getch();
@@ -110,7 +114,7 @@ void CreateUser() {
         mvprintw(2, 0, "Username: %s", newUser.username);
         mvprintw(3, 0, "Would you like to enter your own password or generate a random one?");
         mvprintw(4, 0, "Enter 'y' for your own password, 'r' for random: ");
-        move(4, 56); // Position cursor for choice input
+        move(4, 56); 
         choice = getch();
         if (choice == 'r') {
             generateRandomPassword(newUser.password, 10);
@@ -118,7 +122,7 @@ void CreateUser() {
             isValid = 1;
         } else if (choice == 'y') {
             mvprintw(6, 0, "Enter Password: ");
-            move(6, 15); // Position cursor for password input
+            move(6, 15); 
             echo();
             getstr(newUser.password);
             noecho();
@@ -141,7 +145,7 @@ void CreateUser() {
         mvprintw(2, 0, "Username: %s", newUser.username);
         mvprintw(3, 0, "Password: %s", newUser.password);
         mvprintw(4, 0, "Enter Email: ");
-        move(4, 12); // Position cursor for email input
+        move(4, 12); 
         echo();
         getstr(newUser.email);
         noecho();
@@ -151,10 +155,10 @@ void CreateUser() {
             getch();
         }
     } while (!isValid);
-
-    // Save User
+    newUser.gameCount +=1;
     saveUser(&newUser);
-    mvprintw(6, 0, "User created successfully!");
+      mvprintw(6,0,"User created successfully!");
+      mvprintw(7, 0, "%s, welcome to the game!", newUser.username);
     refresh();
     getch();
 }
@@ -167,21 +171,25 @@ void CreateGuestUser() {
         clear();
         mvprintw(0, 0, "Create a Guest User");
         mvprintw(2, 0, "Enter Guest Username: ");
-        move(2, 22); // Position cursor for username input
+        move(2, 22); 
         echo();
         getstr(guestUser.username);
         noecho();
-        // You can add additional validation for username if needed
-        isValid = strlen(guestUser.username) > 0; // Basic non-empty validation
+        isValid = strlen(guestUser.username) > 0; 
         if (!isValid) {
             mvprintw(4, 0, "Invalid Username! Press any key to retry...");
-            getch();
+        }
+           mvprintw(5, 0, " Press 'q' to return to the main menu...");
+            int ch = getch();
+            if (ch == 'q') {
+         render2();
         }
     } while (!isValid);
     strcpy(guestUser.password, "");
     strcpy(guestUser.email, "");
     addPlayer(players, &playerCount, guestUser.username);
-    mvprintw(6, 0, "Guest user created successfully!");
+    mvprintw(6,0,"User created successfully!");
+     mvprintw(7, 0, "%s, welcome to the game!", guestUser.username);
     refresh();
     getch();
 }
@@ -233,11 +241,11 @@ void generateRandomPassword(char* password, int length) {
     const char* characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     int numCharacters = strlen(characters);
 
-    srand(time(NULL)); // Seed the random number generator
+    srand(time(NULL)); 
     for (int i = 0; i < length; i++) {
         password[i] = characters[rand() % numCharacters];
     }
-    password[length] = '\0'; // Null-terminate the string
+    password[length] = '\0'; 
 }
 
 void startNewGame() {
@@ -252,8 +260,8 @@ void startNewGuestGame() {
 
 void showPreGameMenu(int option) {
     clear();
-    menu_win = newwin(15, 40, 2, 2); // Create a new window for the menu
-    box(menu_win, 0, 0); // Draw a box around the window
+    menu_win = newwin(15, 40, 2, 2); 
+    box(menu_win, 0, 0); 
     refresh();
     wrefresh(menu_win);
 
@@ -288,12 +296,12 @@ void showPreGameMenu(int option) {
 }
 
 void display_textbox(const char *message) {
-    textbox_win = newwin(10, 40, 12, 2); // Create a new window for the message textbox
-    box(textbox_win, 0, 0); // Draw a box around the window
+    textbox_win = newwin(10, 40, 12, 2); 
+    box(textbox_win, 0, 0);
     mvwprintw(textbox_win, 1, 2, message);
     wrefresh(textbox_win);
-    getch(); // Wait for user input
-    delwin(textbox_win); // Delete the textbox window after use
+    getch(); 
+    delwin(textbox_win); 
     clear();
     refresh();
 }
@@ -333,9 +341,18 @@ void displayPage(PlayerL players[], int start, int end, int count) {
     mvprintw(6, 70, "🏆");
     mvprintw(7, 70, "🥈");
     mvprintw(8, 70, "🥉");
+    mvprintw(6,74,"Goat");
+    mvprintw(7,74,"Legend");
+    mvprintw(8,74,"Champion");
+
+
     attroff(COLOR_PAIR(4));
 
     mvprintw(18, 10, "Press LEFT/RIGHT to scroll, 'q' to return to menu...");
+    int ch = getch();
+     if (ch == 'q') {
+         render2();
+        }
     refresh();
 }
 
@@ -413,12 +430,13 @@ void display_menu(WINDOW *menu_win, int highlight, char **choices, int n_choices
 }
 
 int render2() {
-    setlocale(LC_ALL, ""); // Ensure proper locale settings
+    setlocale(LC_ALL, ""); 
     init();
     int choice = 0;
     showPreGameMenu(choice);
     while (1) {
         int ch = getch();
+    
         if (ch == KEY_UP && choice > 0) {
             choice--;
         } else if (ch == KEY_DOWN && choice < 6) {
@@ -437,21 +455,18 @@ int render2() {
             break;
         case 2:
             display_textbox("Continuing Previous Game...");
-            // Continue Previous Game Code
             break;
         case 3:
             showScoreboard(players, playerCount);
             break;
         case 4:
             display_textbox("Opening Settings...");
-            // Settings Code
             break;
         case 5:
             showProfile();
             break;
         case 6:
             display_textbox("Returning to Main Menu...");
-            // Main Menu Code
             break;
         default:
             display_textbox("Invalid option! Please try again.");
@@ -459,3 +474,4 @@ int render2() {
     refresh();
     endwin();
 }
+
