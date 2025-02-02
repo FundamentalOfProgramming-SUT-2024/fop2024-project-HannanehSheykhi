@@ -7,6 +7,7 @@
 #include <unistd.h> 
 #include <signal.h>
 #include <wchar.h>
+#include <stdbool.h>
 #include "common.h"
 
 #define MAP_WIDTH 180
@@ -125,7 +126,7 @@ CodeButton codeButtons[MAX_CODE_BUTTONS];
 PasswordDoor passwordDoors[MAX_PASSWORD_DOORS];
 int lastValidCode = -1;
 SecretDoor secretDoors[MAX_SECRET_DOORS];
-char map[MAP_HEIGHT][MAP_WIDTH];
+char map[MAP_HEIGHT+10][MAP_WIDTH];
 int seen[MAP_HEIGHT][MAP_WIDTH];
 Player player;
 Enemy enemies[MAX_ENEMIES];
@@ -137,7 +138,16 @@ Gold golds[MAX_GOLD];
 int playerGold = 0; 
 Floor floors[MAX_FLOORS];
 int currentFloor = 0;
-wchar_t playerChar[];
+//wchar_t playerChar[];
+bool isMapRevealed = false; 
+Map MAP[1000];
+int hunger = 100;
+ int maxHunger = 100;
+ int hungerThreshold = 30;
+  Food foods[MAX_FOODS];  
+ Food storedFoods[MAX_FOOD_STORAGE]; 
+ char message[50];
+
 
 
 
@@ -161,9 +171,29 @@ void initializeMap() {
     }
 }
 
-void renderMap() {
+void initializeBox() {
+    for (int i = 51; i < 57; i++) {
+        for (int j = 1; j < 180; j++) {
+            if (i == 51 || i == 57 || j == 1 || j == 180 ) {
+                mvaddch(i,j,'*');
+                //map[i][j] = '*';
+            } else {
+                mvaddch(i,j,' ');
+            }
+           // seen[i][j] = 0;
+
+        }
+    }
+}
+
+ void renderMap(bool reveal) {
+    clear();
     for (int i = 1; i < MAP_HEIGHT; i++) {
         for (int j = 1; j < MAP_WIDTH; j++) {
+            if (reveal) {
+                mvprintw(i, j, "%c", map[i][j]); 
+            } 
+            else{
             if (map[i][j] == '*') {
                 mvaddch(i, j, map[i][j]);
             } else if (seen[i][j]) {
@@ -171,9 +201,11 @@ void renderMap() {
             } else {
                 mvaddch(i, j, ' ');
             }
+            }
         }
     }
 }
+
 
 void updateVisibility() {
     for (int i = player.y - 5; i <= player.y + 5; i++) {
@@ -330,6 +362,7 @@ void placeDownStair(int floorNumber, int linkedFloor) {
 
 void createNewFloor(int newFloor) {
     initializeMap();
+    initializeBox();
     generateRooms();
     initializePlayer();
     initializeEnemies();
@@ -337,6 +370,7 @@ void createNewFloor(int newFloor) {
     initializePasswordDoors();
     initializeCodeButtons();
     placeItemsInRooms();
+    placefood();
     placeSecretDoors(rooms[0]);
     placeRandomPasswordDoor();
     initializeGold();
@@ -344,6 +378,8 @@ void createNewFloor(int newFloor) {
     initializeSpecialElements();
     placeSpecialElements();
     addSpecialElementsToMap();
+    
+    
      
     for (int i = 0; i < MAX_ROOMS; i++) {
         floors[newFloor].rooms[i] = rooms[i];
@@ -353,7 +389,29 @@ void createNewFloor(int newFloor) {
             floors[newFloor].map[i][j] = map[i][j];
         }
     }
+    MAP[0].floors[newFloor]=floors[newFloor];
 }
+
+void placefood(){
+    for(int i=0; i<MAX_FOODS; i++){
+    
+      int placed = 0;
+        while (!placed) {
+            Room room = rooms[rand() % MAX_ROOMS]; 
+
+            int x = room.x + 1 + rand() % (room.width - 2);
+            int y = room.y + 1 + rand() % (room.height - 2);
+
+            if (map[y][x] == '.') { 
+                foods[i].x = x;
+                foods[i].y = y;
+                placed = 1;
+                createFood(x, y,"N"[rand()%4], i);
+            }
+        }
+    }
+}
+
 void setupFloorTransition() {
     int nextFloor = currentFloor + 1;
 
@@ -361,6 +419,17 @@ void setupFloorTransition() {
         createNewFloor(nextFloor);
         placeUpStair(currentFloor, nextFloor);
         placeDownStair(nextFloor, currentFloor);
+    }
+}
+
+
+void saveMap(const Map* MAP) {
+    FILE* file = fopen("usersMap.dat", "ab");
+    if (file) {
+        fwrite(MAP, sizeof(Map), 1, file);
+        fclose(file);
+    } else {
+        perror("Error opening file to save the map");
     }
 }
 
@@ -412,10 +481,10 @@ void renderStair() {
     Stair *upStair = &floors[currentFloor].upStair;
     Stair *downStair = &floors[currentFloor].downStair;
 
-    if (upStair->isActive) {
+    if (upStair->isActive && seen[floors[currentFloor].upStair.y][floors[currentFloor].upStair.x]) {
         mvaddch(upStair->y, upStair->x, '>');
     }
-    if (downStair->isActive) {
+    if (downStair->isActive && seen[floors[currentFloor].downStair.y][floors[currentFloor].downStair.y]) {
         mvaddch(downStair->y, downStair->x, '<');
     }
 }
@@ -443,7 +512,7 @@ void discoverSecretDoors() {
         }
     }
 }
-void placeRoom(Room room) {
+void placeRegularRoom(Room room) {
     int doorPlaced = 0;
     int windowPlaced = 0;
     for (int i = room.y; i < room.y + room.height; i++) {
@@ -479,7 +548,157 @@ void placeRoom(Room room) {
     }
 }
 
+void placeTreasureRoom(Room room) {
+    int doorPlaced = 0;
+    int windowPlaced = 0;
+    for (int i = room.y; i < room.y + room.height; i++) {
+        for (int j = room.x; j < room.x + room.width; j++) {
+            if (i == room.y || i == room.y + room.height - 1) {
+                if (!windowPlaced && rand() % 5 == 0) {
+                    map[i][j] = '=';
+                    windowPlaced = 1;
+                } else {
+                    map[i][j] = '-';
+                }
+                if (!doorPlaced && rand() % 5 == 0) {
+                    map[i][j] = '+';
+                    doorPlaced = 1;
+                }
+            } else if (j == room.x || j == room.x + room.width - 1) {
+                if (!windowPlaced && rand() % 10 == 0) {
+                    map[i][j] = '=';
+                    windowPlaced = 1;
+                } else {
+                    map[i][j] = '|';
+                }
+                if (!doorPlaced && rand() % 10 == 0) {
+                    map[i][j] = '+';
+                    doorPlaced = 1;
+                }
+            } else {
+                int random = rand() % 100;
+                if (random < 10) {
+                    map[i][j] = 'g'; // gold
+                } else if (random < 20) {
+                    map[i][j] = 'b'; // black gold
+                } else if (random < 30) {
+                    map[i][j] = 'T'; // traps
+                } else {
+                    map[i][j] = '.';
+                }
+            }
+        }
+    }
+}
 
+void placeEnchantRoom(Room room) {
+    int doorPlaced = 0;
+    int windowPlaced = 0;
+    for (int i = room.y; i < room.y + room.height; i++) {
+        for (int j = room.x; j < room.x + room.width; j++) {
+            if (i == room.y || i == room.y + room.height - 1) {
+                if (!windowPlaced && rand() % 5 == 0) {
+                    map[i][j] = '=';
+                    windowPlaced = 1;
+                } else {
+                    map[i][j] = '-';
+                }
+                if (!doorPlaced && rand() % 5 == 0) {
+                    map[i][j] = '+';
+                    doorPlaced = 1;
+                }
+            } else if (j == room.x || j == room.x + room.width - 1) {
+                if (!windowPlaced && rand() % 10 == 0) {
+                    map[i][j] = '=';
+                    windowPlaced = 1;
+                } else {
+                    map[i][j] = '|';
+                }
+                if (!doorPlaced && rand() % 10 == 0) {
+                    map[i][j] = '+';
+                    doorPlaced = 1;
+                }
+            } else {
+                int random = rand() % 100;
+                if (random < 10) {
+                    map[i][j] = 'h'; // Health enchant
+                } else if (random < 20) {
+                    map[i][j] = 's'; // Speed enchant
+                } else if (random < 30) {
+                    map[i][j] = 'd'; // Damage enchant
+                } else {
+                    map[i][j] = '.';
+                }
+            }
+        }
+    }
+}
+ 
+ void placeNightmareRoom(Room room) {
+    int doorPlaced = 0;
+    int windowPlaced = 0;
+    for (int i = room.y; i < room.y + room.height; i++) {
+        for (int j = room.x; j < room.x + room.width; j++) {
+            if (i == room.y || i == room.y + room.height - 1) {
+                if (!windowPlaced && rand() % 5 == 0) {
+                    map[i][j] = '=';
+                    windowPlaced = 1;
+                } else {
+                    map[i][j] = '-';
+                }
+                if (!doorPlaced && rand() % 5 == 0) {
+                    map[i][j] = '+';
+                    doorPlaced = 1;
+                }
+            } else if (j == room.x || j == room.x + room.width - 1) {
+                if (!windowPlaced && rand() % 10 == 0) {
+                    map[i][j] = '=';
+                    windowPlaced = 1;
+                } else {
+                    map[i][j] = '|';
+                }
+                if (!doorPlaced && rand() % 10 == 0) {
+                    map[i][j] = '+';
+                    doorPlaced = 1;
+                }
+            } else if (rand() % 20 == 0) {
+                map[i][j] = 'f'; // Fake items
+            } else {
+                map[i][j] = '.';
+            }
+        }
+    }
+}
+
+void placeRoom(Room room) {
+    int roomType;
+    int randValue = rand() % 100;  
+
+    if (randValue < 70) { 
+        roomType = 0;  // Regular Room
+    } else if (randValue < 80) {  
+        roomType = 1;  // Treasure Room
+    } else if (randValue < 90) {  
+        roomType = 2;  // Nightmare Room
+    } else {  
+        roomType = 3;  // Enchant Room
+    }
+
+    switch (roomType) {
+        case 0:
+            placeRegularRoom(room);
+            break;
+        case 1:
+            placeTreasureRoom(room);
+            break;
+        case 2:
+            placeNightmareRoom(room);
+            break;
+        case 3:
+            placeEnchantRoom(room);
+            break;
+    }
+}
 
 void initializeCodeButtons() {          
     for (int i = 0; i < MAX_CODE_BUTTONS; i++) {
@@ -565,7 +784,7 @@ void placeRandomPasswordDoor() {
         }
     }
 }
-/*void handleCodeButtonInteraction() {
+void handleCodeButtonInteraction() {
     for (int i = 0; i < MAX_CODE_BUTTONS; i++) {
         if (codeButtons[i].isActive && player.x == codeButtons[i].x && player.y == codeButtons[i].y) {
             codeButtons[i].generatedCode = rand() % 9000 + 1000;
@@ -588,18 +807,18 @@ void updateCodeButtonVisibility() {
 
             if (timeElapsed > 30) {
                 codeButtons[i].isVisible = 0; 
-                mvprintw(MAP_HEIGHT, 0, "\t\t\t\t");  // Clear the line for code visibility
+                mvprintw(MAP_HEIGHT, 0, "\t\t\t\t");  
                 refresh();
             } else {
                 mvprintw(MAP_HEIGHT-2, 2, "Generated Code: %d (Valid for %d seconds)", 
-                         codeButtons[i].generatedCode, 30 - timeElapsed);
+                         codeButtons[i].generatedCode, 30000000 - timeElapsed);
                 refresh();
             }
         }
     }
-}*/
+}
 
-void handleCodeButtonInteraction() {
+/*void handleCodeButtonInteraction() {
     for (int i = 0; i < MAX_CODE_BUTTONS; i++) {
         if (codeButtons[i].isActive && player.x == codeButtons[i].x && player.y == codeButtons[i].y) {
             codeButtons[i].generatedCode = rand() % 9000 + 1000;
@@ -611,11 +830,13 @@ void handleCodeButtonInteraction() {
             refresh();
 
             // نمایش کد برای ۳۰ ثانیه
-            for (int j = 0; j < 30; j++) {
+                for(int j=0; j<30; j++){
                 updateCodeButtonVisibility();
                 refresh();
-                usleep(1000000); 
-            }
+                usleep(1000000);
+                }
+                 
+            
             codeButtons[i].isVisible = 0; 
             mvprintw(MAP_HEIGHT-2, 2, "\t\t\t\t");  // پاک کردن خط مربوط به کد
             refresh();
@@ -640,7 +861,7 @@ void updateCodeButtonVisibility() {
             }
         }
     }
-}
+}*/
 
 
 void handlePasswordDoorInteraction() {
@@ -685,8 +906,16 @@ void handlePasswordDoorInteraction() {
 
 
 void initializeEnemies() {
-    /*
-    switch(game_difficulty){
+    
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        int roomIndex = rand() % MAX_ROOMS; 
+        Room room = rooms[roomIndex];      
+
+        enemies[i].x = room.x + 1 + rand() % (room.width - 2); 
+        enemies[i].y = room.y + 1 + rand() % (room.height - 2);
+
+        enemies[i].type = rand() % 5 + 1;  
+       /*switch(game_difficulty){
     case 1: 
     enemies[i].type = rand() % 15 + 1; 
     break;
@@ -697,14 +926,6 @@ void initializeEnemies() {
     enemies[i].type = rand() % 5 + 1; 
     break;
     }*/
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        int roomIndex = rand() % MAX_ROOMS; 
-        Room room = rooms[roomIndex];      
-
-        enemies[i].x = room.x + 1 + rand() % (room.width - 2); 
-        enemies[i].y = room.y + 1 + rand() % (room.height - 2);
-
-        enemies[i].type = rand() % 5 + 1;  
         enemies[i].isAlive = 1;            
         enemies[i].room = &rooms[roomIndex]; 
 
@@ -811,17 +1032,26 @@ void generateRooms() {
 void initializePlayer() {
     player.x = rooms[0].x + rooms[0].width / 2;
     player.y = rooms[0].y + rooms[0].height / 2;
-    player.health = 50;
+    player.health = 20;
     player.itemsCollected = 0;
 }
 
 void renderPlayer() {
-    //wchar_t playerChar[] = {L'☺'}; // استفاده از کاراکتر یونیکد wchar_t hero_avatar = L'☺'; 
-    mvaddwstr(player.y, player.x, playerChar); // استفاده از mvaddwstr برای چاپ رشته‌های وسیع
+    //wchar_t playerChar[] = {L'☺'}; 
+    mvaddwstr(player.y, player.x, playerChar); 
 }
 void renderStats() {
-    mvprintw(0, 0, "Health: %d  Gold: %d Items: %d/%d", player.health, playerGold, player.itemsCollected, MAX_ITEMS);
+    mvprintw(0, 0, "Health: %d  Gold: %d Items: %d/%d Hunger: %d Message: %s ", player.health, playerGold, player.itemsCollected, MAX_ITEMS, hunger, message);
 }
+
+  /*void handleConsumefood(){
+      for (int i = 0; i < MAX_FOODS; i++) { 
+      if (player.x == foods[i].x && player.y == foods[i].y ) {  
+        consumeFood(i);
+         break;
+    }
+
+      }}*/
 
 void handlePlayerInput(int ch) {
     int newX = player.x, newY = player.y;
@@ -834,13 +1064,20 @@ void handlePlayerInput(int ch) {
         case 'u': newX++; newY--; break;
         case 'b': newX--; newY++; break;
         case 'n': newX++; newY++; break;
+        case 'M': isMapRevealed = !isMapRevealed; break;   
+        case 'e':  handleConsumeStoredFood(); break;
+
     }
          attron(COLOR_PAIR(3)); 
     if (map[newY][newX] == '.' || map[newY][newX] == '#' || map[newY][newX] == '+' ||
         map[newY][newX] == 'g' || map[newY][newX] == 'b' || 
         map[newY][newX] == '^' || map[newY][newX] == '<' || map[newY][newX] == '?'||
         map[newY][newX] == 'T' ||map[newY][newX] == '>' 
-        ||map[newY][newX] == '@' ||map[newY][newX] == '&') {
+        ||map[newY][newX] == '@' ||map[newY][newX] == '&' ||map[newY][newX] == 'N'||
+        map[newY][newX] == 'E' || map[newY][newX] == 'M' || map[newY][newX] == 'P' 
+         || map[newY][newX] == 'h' || map[newY][newX] == 's'||
+        map[newY][newX] == 'd' )
+          {//
         player.x = newX;
         player.y = newY;
     }
@@ -957,6 +1194,20 @@ void renderItems() {
     }
 }
 
+void renderfood() {
+    for (int i = 0; i < MAX_FOODS; i++) {
+        if (!foods[i].isConsumed && seen[foods[i].y][foods[i].x]) {
+           if(foods[i].type=='N' )mvaddch(foods[i].y, foods[i].x, 'N');
+             if(foods[i].type=='E' )mvaddch(foods[i].y, foods[i].x, 'E');
+              if(foods[i].type=='M' )mvaddch(foods[i].y, foods[i].x, 'M');
+               if(foods[i].type=='P' )mvaddch(foods[i].y, foods[i].x, 'N');
+
+
+
+        }
+    }
+}
+
 void checkItemCollection() {
     for (int i = 0; i < MAX_ITEMS; i++) {
         if (!items[i].isCollected && player.x == items[i].x && player.y == items[i].y) {
@@ -1027,13 +1278,18 @@ void renderGold() {
         }
     }
 }
+
 void collectGold() {
     for (int i = 0; i < MAX_GOLD; i++) {
         if (!golds[i].isCollected && player.x == golds[i].x && player.y == golds[i].y) {
             playerGold += golds[i].value;  
             golds[i].isCollected = 1;     
             map[golds[i].y][golds[i].x] = '.'; 
-            mvprintw(MAP_HEIGHT+2, 2, "You collected %d gold!", golds[i].value);
+            attron(COLOR_PAIR(2)); 
+            mvprintw(52, 0, "You collected %d gold!", golds[i].value);
+           message[50]= "You collected gold!";
+            attroff(COLOR_PAIR(2)); 
+            
         }
     }
 }
@@ -1096,8 +1352,8 @@ void gameOverScreen() {
     clear(); 
     int choice = 0; 
     const char *options[] = {
-        "Return to Main Menu",
-        "Quit the Game"
+        "Play Again",
+        "Quit The Game"
     };
     int numOptions = 2;
 
@@ -1136,6 +1392,7 @@ void gameOverScreen() {
             case '\n': 
                 if (choice == 0) { 
                     initializeMap(); 
+                    initializeBox();
                     generateRooms();
                     initializePlayer();
                     initializeEnemies();
@@ -1157,6 +1414,204 @@ void gameOverScreen() {
         }
     }
 }
+
+/*void decreaseHunger() {  
+      hunger--;   
+       if (hunger <= hungerThreshold) {  
+              player.health -= 2;       
+                mvprintw(0, 40, "Hunger is too high! Health decreased.");    }}
+
+    
+void increaseHunger() { 
+       hunger++;   
+        if (hunger > maxHunger) hunger = maxHunger;}
+void createFood(int x, int y, char type, int index) {  
+      Food food;   
+       food.x = x; 
+          food.y = y;  
+            food.type = type;
+
+    if (type == 'N') {   
+              food.healthBoost = 10;  
+             food.powerBoost = 0;  
+               food.speedBoost = 0;      
+                food.duration = 0; 
+                map[y][x]='N';
+  } else if (type == 'E') {  
+food.healthBoost = 20;   
+  food.powerBoost = 5;  
+  food.speedBoost = 5;   
+  food.duration = 10;  
+  map[y][x]='E';
+   } else if (type == 'M') {  
+   food.healthBoost = 15;    
+     food.powerBoost = 10;    
+   food.speedBoost = 15;  
+     food.duration = 5; 
+     map[y][x]='M';
+ } else if (type == 'P') {   
+  food.healthBoost = -10;  
+ food.powerBoost = -5;    
+         food.speedBoost = -5;  
+        food.duration = 0; 
+        map[y][x]='P';    }
+    food.isConsumed = 0;   
+      foods[index] = food;}
+
+ void storeFood(int index) {   
+    for (int i = 0; i < MAX_FOOD_STORAGE; i++) {  
+      if (storedFoods[i].isConsumed) {     
+         storedFoods[i] = foods[index];      
+          storedFoods[i].isConsumed = 0;      
+          break;        
+         }  
+         }
+     }
+void consumeFood(int index) { 
+   if (storedFoods[index].type == 'N' || storedFoods[index].type == 'E') { 
+   player.health += storedFoods[index].healthBoost;   
+ hunger += 10;   
+      mvprintw(0, 0, "Health increased by %d and hunger decreased.", storedFoods[index].healthBoost);
+       map[storedFoods[index].y][storedFoods[index].x]='.';
+       } else if (storedFoods[index].type == 'M') {   
+         player.health += storedFoods[index].healthBoost; 
+         player.speed += storedFoods[index].speedBoost;  
+         hunger += 10;  
+             mvprintw(0, 0, "Health increased by %d and speed increased by %d!", storedFoods[index].healthBoost, storedFoods[index].speedBoost); 
+              map[storedFoods[index].y][storedFoods[index].x]='.';
+             } else if (storedFoods[index].type == 'P') {  
+               player.health += storedFoods[index].healthBoost;   
+                player.speed += storedFoods[index].speedBoost; 
+                 hunger += 10;     
+                mvprintw(0, 0, "Health decreased by %d and speed decreased by %d!", -storedFoods[index].healthBoost, -storedFoods[index].speedBoost);
+                 map[storedFoods[index].y][foods[index].x]='.';  
+           }
+           storedFoods[index].x = -1;
+           storedFoods[index].y = -1;
+    storedFoods[index].isConsumed = 1; 
+    }
+    /*void handleConsumefood(){
+      for (int i = 0; i < MAX_FOODS; i++) { 
+      if (player.x == foods[i].x && player.y == foods[i].y ) {  
+        consumeFood(i);
+         break;
+    }
+
+      }}*/
+/*void renderStoredFoods() { 
+      for (int i = 0; i < MAX_FOOD_STORAGE; i++) { 
+               if (!storedFoods[i].isConsumed) {
+                            mvprintw(0, i * 12 + 50, "%c", storedFoods[i].type); 
+   }  
+ }
+  }*/
+/*void handleFoodInteraction() {
+   for (int i = 0; i < MAX_FOODS; i++) { 
+      if (player.x == foods[i].x && player.y == foods[i].y && !foods[i].isConsumed) { 
+        storeFood(i);   
+        mvprintw(0, 0, "Food stored!"); 
+         break;  
+   }    }}*/
+/*void handleConsumeStoredFood() { 
+       if (storedFoods[0].isConsumed) { 
+               return;   }
+               consumeFood(0);
+               }
+void renderHunger() {    mvprintw(52, 0, "Hunger: %d", hunger); }
+void renderHealthAndFood() {    mvprintw(2, 0, "Health: %d", player.health);     renderStoredFoods(); }*/
+
+void decreaseHunger() {  
+      hunger--;   
+       if (hunger <= hungerThreshold) {  
+              player.health -= 2;       
+                mvprintw(0, 40, "Hunger is too high! Health decreased.");    }}
+
+    
+void increaseHunger() { 
+       hunger++;   
+        if (hunger > maxHunger) hunger = maxHunger;}
+void createFood(int x, int y, char type, int index) {  
+      Food food;   
+       food.x = x; 
+          food.y = y;  
+            food.type = type;
+
+    if (type == 'N') {   
+              food.healthBoost = 10;  
+             food.powerBoost = 0;  
+               food.speedBoost = 0;      
+                food.duration = 0; 
+                map[y][x]='N';
+  } else if (type == 'E') {  
+food.healthBoost = 20;   
+  food.powerBoost = 5;  
+  food.speedBoost = 5;   
+  food.duration = 10;  
+  map[y][x]='E';
+   } else if (type == 'M') {  
+   food.healthBoost = 15;    
+     food.powerBoost = 10;    
+   food.speedBoost = 15;  
+     food.duration = 5; 
+     map[y][x]='M';
+ } else if (type == 'P') {   
+  food.healthBoost = -10;  
+ food.powerBoost = -5;    
+         food.speedBoost = -5;  
+        food.duration = 0; 
+        map[y][x]='P';    }
+    food.isConsumed = 0;   
+      foods[index] = food;}
+
+ void storeFood(int index) {   
+    for (int i = 0; i < MAX_FOOD_STORAGE; i++) {  
+      if (storedFoods[i].isConsumed) {     
+         storedFoods[i] = foods[index];      
+          storedFoods[i].isConsumed = 0;      
+          break;        
+         }  
+         }
+     }
+void consumeFood(int index) { 
+   if (storedFoods[index].type == 'N' || storedFoods[index].type == 'E') { 
+   player.health += storedFoods[index].healthBoost;   
+ hunger += 10;   
+      mvprintw(0, 0, "Health increased by %d and hunger decreased.", storedFoods[index].healthBoost);
+       } else if (storedFoods[index].type == 'M') {   
+         player.health += storedFoods[index].healthBoost; 
+         player.speed += storedFoods[index].speedBoost;  
+         hunger += 10;  
+             mvprintw(0, 0, "Health increased by %d and speed increased by %d!", storedFoods[index].healthBoost, storedFoods[index].speedBoost); 
+             } else if (storedFoods[index].type == 'P') {  
+               player.health += storedFoods[index].healthBoost;   
+                player.speed += storedFoods[index].speedBoost; 
+                 hunger += 10;     
+                mvprintw(0, 0, "Health decreased by %d and speed decreased by %d!", -storedFoods[index].healthBoost, -storedFoods[index].speedBoost);  
+           }
+    map[storedFoods[index].y][foods[index].x]='.';  
+    storedFoods[index].isConsumed = 1; 
+    }
+void renderStoredFoods() { 
+      for (int i = 0; i < MAX_FOOD_STORAGE; i++) { 
+               if (!storedFoods[i].isConsumed) {
+                            mvprintw(0, i * 12 + 50, "%c", storedFoods[i].type); 
+   }  
+ }
+  }
+void handleFoodInteraction() {
+   for (int i = 0; i < MAX_FOODS; i++) { 
+      if (player.x == foods[i].x && player.y == foods[i].y && !foods[i].isConsumed) { 
+        storeFood(i);   
+        mvprintw(0, 0, "Food stored!"); 
+         break;  
+   }    }}
+void handleConsumeStoredFood() { 
+       if (storedFoods[0].isConsumed) { 
+               return;   }
+               consumeFood(0);
+               }
+//void renderHunger() {    mvprintw(52, 0, "Hunger: %d", hunger); }
+void renderHealthAndFood() {    /*mvprintw(2, 0, "Health: %d", player.health); */    renderStoredFoods(); }
 int render4() {
     srand(time(NULL));
     setlocale(LC_ALL, "");
@@ -1182,19 +1637,22 @@ int render4() {
     placeUpStair(2,3);
     createNewFloor(3);
     placeDownStair(3,2);
-
+    saveMap(MAP);
 
 
     while (1) {
         clear();
         updateVisibility();
-        renderMap();
+        renderMap(isMapRevealed);
         renderEnemies();
         renderStair();
         renderItems();
         renderSpecialElements();
+        //renderHunger();
+        renderHealthAndFood();
         renderGold();
         renderPlayer();
+        renderfood();
         renderStats();
         refresh();
 
@@ -1209,6 +1667,9 @@ int render4() {
         handlePasswordDoorInteraction();
         discoverSecretDoors();
         handleSpecialElementInteraction();
+        handleFoodInteraction();
+        decreaseHunger();
+        increaseHunger();
         collectGold();
         checkEnemyCollision();
         checkItemCollection();

@@ -18,7 +18,7 @@ const char *music_files[] = {
 int current_track = 0; 
 pid_t music_pid = 0;   
 int game_difficulty = 1;
-wchar_t hero_avatar = L'☺'; // Default hero avatar
+wchar_t hero_avatar = L'@'; 
 wchar_t  playerChar[];
 
 void play_music(const char *track);
@@ -33,7 +33,7 @@ int render3() {
     setlocale(LC_ALL, ""); 
     initscr();
     start_color();
-    init_pair(1, COLOR_WHITE, COLOR_BLACK); // White text on black background
+    init_pair(1, COLOR_WHITE, COLOR_BLACK); 
     init_pair(2, COLOR_MAGENTA, COLOR_BLACK); 
 
     int startx = 0, starty = 0;
@@ -166,9 +166,9 @@ void handle_difficulty_settings() {
 
 void handle_avatar_settings() {
     wchar_t *avatar_choices[] = {
-        L"☺",
-        L"☻",
-        L"☼",
+        L"@",
+        L"$",
+        L"*",
         L"Back"
     };
     int n_choices = sizeof(avatar_choices) / sizeof(wchar_t *);
@@ -293,7 +293,7 @@ void play_music(const char *track) {
 
 void stop_music() {
     if (music_pid > 0) {
-        kill(music_pid, SIGTERM);
+        kill(music_pid, SIGKILL);  
         music_pid = 0;
     }
 }

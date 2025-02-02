@@ -27,12 +27,15 @@
 #define MAX_PASSWORD_DOORS 3
 #define MAX_SECRET_DOORS 5
 #define MAX_CODE_BUTTONS 3
+#define MAX_FOOD_STORAGE 5 
+#define MAX_FOODS 10  
 
 // Struct declarations
 typedef struct {
     char username[50];
     char password[50];
     char email[100];
+    int gameCount;
 } User;
 
 
@@ -56,6 +59,7 @@ typedef struct {
     int x, y;
     int health;
     int itemsCollected;
+    int speed;
 } Player;
 
 typedef struct {
@@ -135,6 +139,21 @@ typedef struct {
     int attemptsLeft;
 } PasswordDoor;
 
+typedef struct {
+    Floor floors[4];
+} Map;
+     
+typedef struct {   
+    int x, y;    
+    char type;    
+    int healthBoost;  
+    int powerBoost;
+    int speedBoost;  
+    int duration;   
+    int isConsumed;
+    } Food;
+
+
 // External global variable declarations
 extern PlayerL players[100];
 extern User users[100];
@@ -152,7 +171,7 @@ extern Floor floors[MAX_FLOORS];
 extern SecretDoor secretDoors[MAX_SECRET_DOORS];
 extern CodeButton codeButtons[MAX_CODE_BUTTONS];
 extern PasswordDoor passwordDoors[MAX_PASSWORD_DOORS];
-extern char map[MAP_HEIGHT][MAP_WIDTH];
+extern char map[MAP_HEIGHT+10][MAP_WIDTH];
 extern int seen[MAP_HEIGHT][MAP_WIDTH];
 extern int playerGold;
 extern int currentFloor;
@@ -162,7 +181,14 @@ extern int game_difficulty;
 extern wchar_t hero_avatar;
 //setlocale(LC_ALL, ""); 
 //wchar_t playerChar[] = L'☺';
-wchar_t playerChar[]  ;
+extern wchar_t playerChar[]  ;
+//bool isMapRevealed ; 
+extern Food foods[MAX_FOODS];  
+extern Food storedFoods[MAX_FOOD_STORAGE]; 
+extern int hunger;
+ extern int maxHunger ;
+ extern int hungerThreshold;
+ extern char message[50];
 
 
 // Function prototypes
@@ -179,13 +205,14 @@ void showScoreboard(PlayerL players[], int count);
 void createNewFloor();
 void placeUpStair();
 void placeDownStair();
-void renderMap();
+void renderMap(bool reveal);
 void renderStair();
 void renderItems();
 void renderSpecialElements();
 void renderGold();
 void renderPlayer();
 void renderStats();
+//void handleConsumefood();
 void handlePlayerInput(int ch);
 void handleCodeButtonInteraction();
 void handleSpecialElementInteraction();
@@ -198,6 +225,7 @@ void gameOverScreen();
 void placeSpecialElements();
 void placeGold();
 void initializeGold();
+void initializeBox() ;
 void addSpecialElementsToMap();
 void placeItemsInRooms();
 void initializeItems();
@@ -240,12 +268,35 @@ void draw_instructions();
  void draw_border();
  void draw_producer_credit();
  void draw_movement_controls();
+ void draw_rogue_art() ;
  int render1();
  int render2();
  int render3();
  int render4();
  int main();
-
+ void updateScore();
+ void addPlayer();
+ void sortPlayersByScore();
+ void showProfile() ;
+void display_textbox();
+int usernameExists(const char *filename, const char *username);
+void saveMap(const Map* MAP);
+void placeRegularRoom(Room room) ;
+void placeTreasureRoom(Room room);
+void placeEnchantRoom(Room room) ;
+void placeNightmareRoom(Room room) ;
+void decreaseHunger();
+void increaseHunger();
+void createFood(int x, int y, char type, int index);
+void storeFood(int index) ;
+void consumeFood(int index) ;
+void renderStoredFoods() ;
+void handleFoodInteraction() ;
+void handleConsumeStoredFood();
+void renderHunger() ;
+void renderHealthAndFood();
+void placefood();
+void renderfood() ;
 
 
 #endif // COMMON_H
