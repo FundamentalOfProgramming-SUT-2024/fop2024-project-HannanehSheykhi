@@ -459,8 +459,3 @@ int render2() {
     refresh();
     endwin();
 }
-
-int main() {
-    render2();
-    return 0;
-}
